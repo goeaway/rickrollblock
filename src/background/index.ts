@@ -2,9 +2,6 @@ import { browser } from "webextension-polyfill-ts";
 import messageListener from "./message-listener";
 import tabUpdatedListener from "./tab-updated-listener";
 
-// change to get from local storage
-
-
 // start by getting the blacklist
 browser.storage.local.get("blacklist").then(data => {
     const blacklist = data[Object.keys(data)[0]];
@@ -13,6 +10,7 @@ browser.storage.local.get("blacklist").then(data => {
     browser.runtime.onMessage.addListener(messageListener);
 });
 
+// add a listener for storage update, in case blacklist is updated
 browser.storage.onChanged.addListener(changes => {
     const blacklistChange = changes["blacklist"];
 
@@ -24,5 +22,3 @@ browser.storage.onChanged.addListener(changes => {
         browser.tabs.onUpdated.addListener(tabUpdatedListener, { urls: newBlacklist });
     }
 });
-
-

@@ -3,9 +3,12 @@ import styled from "styled-components";
 import { browser } from "webextension-polyfill-ts";
 
 const ContentApp : FC = () => {
-    const clickHandler = () => {
-        
-        browser.runtime.sendMessage({override: true});
+    const allowOnceHandler = () => {
+        browser.runtime.sendMessage({key:"override"});
+    }
+
+    const unblockUrlHandler = () => {
+        browser.runtime.sendMessage({key:"unblock"});
     }
 
     return (
@@ -16,7 +19,8 @@ const ContentApp : FC = () => {
             <Explanation>
                 It looks like someone tried to Rick Roll you. Luckily we stopped it.
             </Explanation>
-            <Button onClick={clickHandler}>Let me see Rick!</Button>
+            <Button onClick={allowOnceHandler}>Rick Roll me just this once</Button>
+            <Button onClick={unblockUrlHandler}>Unblock this URL</Button>
         </Container>
     );
 }

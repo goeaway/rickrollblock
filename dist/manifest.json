@@ -20,6 +20,12 @@
       "default_popup": "popup.html"
     },
 
+    "page_action": {
+      "browser_style": true,
+      "default_icon": "icons/rick-32.png",
+      "default_title": "Add to rick roll blacklist"
+    },
+
     "permissions": [
       "tabs",
       "storage"

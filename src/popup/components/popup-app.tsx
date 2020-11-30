@@ -1,17 +1,29 @@
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { browser } from "webextension-polyfill-ts";
+import { browser, Storage } from "webextension-polyfill-ts";
 import OptionsItem from "./options-item";
 import UrlInput from "./url-input";
 
-const url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+const defaultBlacklist = [
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+];
+
+const neverBlockPattern = "moz-extension://*.?|about:*.?";
+
+/**
+ * Returns true if specified url is not allowed to be blocked
+ * @param url 
+ */
+const urlBlockForbidden = (url: string) => RegExp(neverBlockPattern).test(url);
 
 const PopupApp = () => {
     const [menuHeight, setMenuHeight] = useState(null);
     const [showMenu, setShownMenu] = useState("main");
     const [enabled, setEnabled] = useState(false);
     const [blacklist, setBlacklist] = useState([]);
+    const [currentUrlAdded, setCurrentUrlAdded] = useState(false);
+    const [currentUrlBlockForbidden, setCurrentUrlBlockForbidden] = useState(false);
     
     const mainRef = useRef<HTMLDivElement>(null);
     const blacklistRef = useRef<HTMLDivElement>(null);
@@ -20,15 +32,34 @@ const PopupApp = () => {
     useEffect(() => {
         const loadAsync = async () => {
             const blacklistItem = await browser.storage.local.get("blacklist");
-            setBlacklist(blacklistItem[Object.keys(blacklistItem)[0]] || []);
+            setBlacklist(blacklistItem[Object.keys(blacklistItem)[0]] || defaultBlacklist);
         
             const enabledItem = await browser.storage.local.get("enabled");
             setEnabled(enabledItem[Object.keys(enabledItem)[0]] || false);
         }
-
+        
         loadAsync();
 
+        const storageUpdateHandler = ((changes: {[s: string]: Storage.StorageChange}) => {
+            const blacklistChange = changes["blacklist"];
+            if(blacklistChange) {
+                const newBlacklist = blacklistChange.newValue as Array<string>;
+
+                browser.tabs.query({currentWindow: true, active: true}).then(tabs => {
+                    const { url } = tabs[0];
+                    setCurrentUrlAdded(newBlacklist.indexOf(url) > -1);
+                    setCurrentUrlBlockForbidden(urlBlockForbidden(url));
+                });
+            }
+        });
+
+        browser.storage.onChanged.addListener(storageUpdateHandler);
+
         setMenuHeight((containerRef.current.firstChild as HTMLDivElement).offsetHeight);
+
+        return () => {
+            browser.storage.onChanged.removeListener(storageUpdateHandler);
+        }
     }, []);
 
     useEffect(() => {
@@ -42,6 +73,10 @@ const PopupApp = () => {
             setMenuHeight(blacklistRef.current.offsetHeight);
         }
     }, [blacklist]);
+
+    useEffect(() => {
+        setMenuHeight(mainRef.current.offsetHeight);
+    }, [currentUrlBlockForbidden, currentUrlAdded]);
 
     const blacklistItemUpdated = (value: string, index: number) => {
         if(!value) {
@@ -68,7 +103,7 @@ const PopupApp = () => {
     }
 
     const addBlacklistItemHandler = (value: string) => {
-        if(!value) {
+        if(!value || blacklist.indexOf(value) > -1) {
             return;
         }
 
@@ -102,6 +137,21 @@ const PopupApp = () => {
         }
     }
 
+    const toggleCurrentClickHandler = () => {
+        browser.tabs.query({currentWindow: true, active: true}).then(tabs => {
+            const { url } = tabs[0];
+            // some pages shouldn't be blockable, such as any page of the extension itself
+            if(!currentUrlAdded && !urlBlockForbidden(url)) {
+                addBlacklistItemHandler(url);
+            } 
+            
+            if(currentUrlAdded) {
+                const index = blacklist.indexOf(url);
+                removeBlacklistItemHandler(index);
+            }
+        })
+    }
+
     return (
         <Container height={menuHeight} ref={containerRef}>
             <AnimatePresence initial={false}>
@@ -114,6 +164,11 @@ const PopupApp = () => {
                         ref={mainRef}
                         onAnimationStart={onAnimationStartHandler}
                     >
+                        {!currentUrlBlockForbidden && (
+                            <OptionsButton onClick={toggleCurrentClickHandler}>
+                                {currentUrlAdded ? "Remove Current URL from blacklist" : "Add Current URL to blacklist"}
+                            </OptionsButton>
+                        )}
                         <OptionsItem name="Enabled" desc="Toggle if blacklisted urls should be blocked">
                             <input type="checkbox" checked={enabled} onChange={enabledChangeHandler} />
                         </OptionsItem>
@@ -131,16 +186,19 @@ const PopupApp = () => {
                         ref={blacklistRef}
                         onAnimationStart={onAnimationStartHandler}
                     >
-                        <button type="button" onClick={returnToMainClickHandler}>{"<"}</button>
-                        blacklist
-                        {blacklist.map((b,i) => (
-                            <UrlInput 
-                                key={i} 
-                                value={b} 
-                                onUpdate={value => blacklistItemUpdated(value, i)}
-                                onRemove={() => removeBlacklistItemHandler(i)} />
-                        ))}
-                        <UrlInput onUpdate={addBlacklistItemHandler} resetAfterUpdate />
+                        <BlacklistContainer>
+                            <OptionsItem name="Blacklist" reverse>
+                                <button type="button" onClick={returnToMainClickHandler}>{"<"}</button>
+                            </OptionsItem>
+                            {blacklist.map((b,i) => (
+                                <UrlInput 
+                                    key={i} 
+                                    value={b} 
+                                    onUpdate={value => blacklistItemUpdated(value, i)}
+                                    onRemove={() => removeBlacklistItemHandler(i)} />
+                            ))}
+                            <UrlInput onUpdate={addBlacklistItemHandler} resetAfterUpdate />
+                        </BlacklistContainer>
                     </Menu>
                 )}
             </AnimatePresence>
@@ -158,8 +216,7 @@ const Container = styled.div`
     width: 250px;
     height: ${(p: ContainerProps) => p.height}px;
     max-height: 450px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     transition: height 100ms;
     flex-direction: column;
@@ -170,4 +227,14 @@ const Menu = styled(motion.div)`
     width: 100%;
     position: absolute;
     padding: 1rem;
+`
+
+const BlacklistContainer = styled.div`
+    max-height: 450px;
+    overflow-x: hidden;
+    overflow-y: auto;
+`
+
+const OptionsButton = styled.button`
+    width: 100%;
 `
