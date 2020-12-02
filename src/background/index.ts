@@ -5,8 +5,9 @@ import tabUpdatedListener from "./tab-updated-listener";
 // start by getting the blacklist
 browser.storage.local.get("blacklist").then(data => {
     const blacklist = data[Object.keys(data)[0]];
+    
     // use the built in filter on the listener to only run the event when the url matches a blacklisted url
-    browser.tabs.onUpdated.addListener(tabUpdatedListener, { urls: blacklist });
+    browser.tabs.onUpdated.addListener(tabUpdatedListener, { urls: blacklist && !!blacklist.length ? blacklist : ["https://dummydummydummy"] });
     browser.runtime.onMessage.addListener(messageListener);
 });
 

@@ -40,10 +40,15 @@
     "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.32",
+    "@fortawesome/free-solid-svg-icons": "^5.15.1",
+    "@fortawesome/react-fontawesome": "^0.1.13",
+    "@types/react-toggle": "^4.0.2",
     "@types/styled-components": "^5.1.1",
     "framer-motion": "^2.9.4",
     "npm-watch": "^0.7.0",
     "preact": "^10.4.6",
+    "react-toggle": "^4.1.1",
     "styled-components": "^5.1.1"
   }
 }

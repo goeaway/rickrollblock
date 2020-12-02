@@ -1,9 +1,11 @@
-import { AnimatePresence, motion } from "framer-motion";
 import React, { useEffect, useRef, useState } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import { browser, Storage } from "webextension-polyfill-ts";
 import OptionsItem from "./options-item";
 import UrlInput from "./url-input";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faExclamationTriangle, faSkullCrossbones } from "@fortawesome/free-solid-svg-icons";
+import Checkbox from "./checkbox";
 
 const defaultBlacklist = [
     "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -18,24 +20,26 @@ const neverBlockPattern = "moz-extension://*.?|about:*.?";
 const urlBlockForbidden = (url: string) => RegExp(neverBlockPattern).test(url);
 
 const PopupApp = () => {
-    const [menuHeight, setMenuHeight] = useState(null);
-    const [showMenu, setShownMenu] = useState("main");
-    const [enabled, setEnabled] = useState(false);
+    const [enabled, setEnabled] = useState(true);
     const [blacklist, setBlacklist] = useState([]);
     const [currentUrlAdded, setCurrentUrlAdded] = useState(false);
     const [currentUrlBlockForbidden, setCurrentUrlBlockForbidden] = useState(false);
     
-    const mainRef = useRef<HTMLDivElement>(null);
-    const blacklistRef = useRef<HTMLDivElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-
     useEffect(() => {
         const loadAsync = async () => {
             const blacklistItem = await browser.storage.local.get("blacklist");
             setBlacklist(blacklistItem[Object.keys(blacklistItem)[0]] || defaultBlacklist);
         
             const enabledItem = await browser.storage.local.get("enabled");
-            setEnabled(enabledItem[Object.keys(enabledItem)[0]] || false);
+
+            const enabled = enabledItem[Object.keys(enabledItem)[0]]; 
+
+            if(enabled !== undefined) {
+                setEnabled(enabled);
+            } else {
+                // default to true
+                await browser.storage.local.set({"enabled": true});
+            }
         }
         
         loadAsync();
@@ -55,8 +59,6 @@ const PopupApp = () => {
 
         browser.storage.onChanged.addListener(storageUpdateHandler);
 
-        setMenuHeight((containerRef.current.firstChild as HTMLDivElement).offsetHeight);
-
         return () => {
             browser.storage.onChanged.removeListener(storageUpdateHandler);
         }
@@ -68,15 +70,7 @@ const PopupApp = () => {
         }
 
         setBlacklist();
-
-        if(showMenu === "blacklist") {
-            setMenuHeight(blacklistRef.current.offsetHeight);
-        }
     }, [blacklist]);
-
-    useEffect(() => {
-        setMenuHeight(mainRef.current.offsetHeight);
-    }, [currentUrlBlockForbidden, currentUrlAdded]);
 
     const blacklistItemUpdated = (value: string, index: number) => {
         if(!value) {
@@ -103,38 +97,17 @@ const PopupApp = () => {
     }
 
     const addBlacklistItemHandler = (value: string) => {
-        if(!value || blacklist.indexOf(value) > -1) {
+        if(!value || value === "https://" || value === "http://" || blacklist.indexOf(value) > -1) {
             return;
         }
 
-        setBlacklist(bl => [...bl, value]);
+        setBlacklist(bl => [value, ...bl]);
     }
 
-    const enabledChangeHandler = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const { checked } = event.target;
+    const enabledChangeHandler = async (checked: boolean) => {
         setEnabled(checked);
 
         await browser.storage.local.set({"enabled": checked});
-    }
-
-    const returnToMainClickHandler = () => {
-        setShownMenu("main");
-    }
-
-    const blacklistOptionClickHandler = () => {
-        setShownMenu("blacklist");
-    }
-
-    const onAnimationStartHandler = () => {
-        // entry happens before exit
-        // hence why these are switched
-        if(showMenu === "main") {
-            setMenuHeight(blacklistRef.current.offsetHeight);
-        }
-        
-        if(showMenu === "blacklist") {
-            setMenuHeight(mainRef.current.offsetHeight);
-        }
     }
 
     const toggleCurrentClickHandler = () => {
@@ -153,88 +126,121 @@ const PopupApp = () => {
     }
 
     return (
-        <Container height={menuHeight} ref={containerRef}>
-            <AnimatePresence initial={false}>
-                {showMenu === "main" && (
-                    <Menu
-                        key="main"
-                        initial={{x: "-105%"}}
-                        animate={{x: 0}}
-                        exit={{x: "-105%"}}
-                        ref={mainRef}
-                        onAnimationStart={onAnimationStartHandler}
-                    >
-                        {!currentUrlBlockForbidden && (
-                            <OptionsButton onClick={toggleCurrentClickHandler}>
-                                {currentUrlAdded ? "Remove Current URL from blacklist" : "Add Current URL to blacklist"}
-                            </OptionsButton>
-                        )}
-                        <OptionsItem name="Enabled" desc="Toggle if blacklisted urls should be blocked">
-                            <input type="checkbox" checked={enabled} onChange={enabledChangeHandler} />
-                        </OptionsItem>
-                        <OptionsItem name="Blacklist" desc="Define exactly which urls should be blocked">
-                            <button onClick={blacklistOptionClickHandler}>{">"}</button>
-                        </OptionsItem>
-                    </Menu>
+        <Container>
+            <Title>
+                Rick Roll Blocker
+            </Title>
+            {!currentUrlBlockForbidden && (
+                <OptionsButton addMode={!currentUrlAdded} onClick={toggleCurrentClickHandler}>
+                    {currentUrlAdded ? "Unblock Current URL" : "Blacklist Current URL"}
+                </OptionsButton>
+            )}
+            <OptionsItem name="Enabled" desc="Toggle if blacklisted urls should be blocked">
+                <Checkbox checked={enabled} onChange={enabledChangeHandler} />
+            </OptionsItem>
+            <OptionsItem name="Blacklist" desc="Define which urls should be blocked">
+            </OptionsItem>
+            <UrlInput 
+                placeholder="Add URL to blacklist"
+                onUpdate={addBlacklistItemHandler} 
+                resetAfterUpdate 
+                />
+            <BlacklistContainer>
+                {blacklist.map((b,i) => (
+                    <UrlInput 
+                        key={i} 
+                        value={b} 
+                        onUpdate={value => blacklistItemUpdated(value, i)}
+                        onRemove={() => removeBlacklistItemHandler(i)} />
+                ))}
+                {blacklist.length === 0 && (
+                    <BlacklistEmptyContainer>
+                        <FontAwesomeIcon icon={faExclamationTriangle} size="4x" color={"rgba(0,0,0,0.24)"} />
+                        <BlacklistEmptyText>Nothing in Blacklist</BlacklistEmptyText>
+                    </BlacklistEmptyContainer>
                 )}
-                {showMenu === "blacklist" && (
-                    <Menu
-                        key="blacklist"
-                        initial={{x: "105%"}}
-                        animate={{x: 0}}
-                        exit={{x: "105%"}}
-                        ref={blacklistRef}
-                        onAnimationStart={onAnimationStartHandler}
-                    >
-                        <BlacklistContainer>
-                            <OptionsItem name="Blacklist" reverse>
-                                <button type="button" onClick={returnToMainClickHandler}>{"<"}</button>
-                            </OptionsItem>
-                            {blacklist.map((b,i) => (
-                                <UrlInput 
-                                    key={i} 
-                                    value={b} 
-                                    onUpdate={value => blacklistItemUpdated(value, i)}
-                                    onRemove={() => removeBlacklistItemHandler(i)} />
-                            ))}
-                            <UrlInput onUpdate={addBlacklistItemHandler} resetAfterUpdate />
-                        </BlacklistContainer>
-                    </Menu>
-                )}
-            </AnimatePresence>
+            </BlacklistContainer>
         </Container>
     );
 }
 
 export default PopupApp;
 
-interface ContainerProps {
-    height: number;
-}
-
 const Container = styled.div`
-    width: 250px;
-    height: ${(p: ContainerProps) => p.height}px;
-    max-height: 450px;
+    width: 300px;
+    height: 400px;
     overflow: hidden;
     display: flex;
     transition: height 100ms;
     flex-direction: column;
     position: relative;
-`
-
-const Menu = styled(motion.div)`
-    width: 100%;
-    position: absolute;
-    padding: 1rem;
+    padding: .5rem;
+    gap: 1rem;
+    color: rgba(0,0,0,0.87);
+    background: #F9FAFB;
 `
 
 const BlacklistContainer = styled.div`
-    max-height: 450px;
     overflow-x: hidden;
     overflow-y: auto;
+
+    padding: 0 .5rem;
+    padding-bottom: .75rem;
+    margin: -.5rem;
 `
+
+interface OptionsButtonProps {
+    addMode: boolean;
+}
 
 const OptionsButton = styled.button`
     width: 100%;
+    outline: none;
+    padding: .5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    background: #F3F4F6;
+    color: #111827;
+    border: 1px solid rgba(0,0,0,0.5);
+    transition: background 300ms ease;
+    font-family: 'Oxygen', sans-serif;
+
+    &:hover {
+        background: rgba(0,0,0,.2);
+    }
+    
+    ${(p: OptionsButtonProps) => p.addMode && css`
+        background: #111827;
+        color: #F3F4F6;
+        border: none;
+
+        &:hover {
+            background: rgba(0,0,0,.8);
+        }
+    `}
+    
+`
+
+const Title = styled.h1`
+    font-size: 20px;
+    line-height: 30px;
+    margin: 0;
+    margin-bottom: -.5rem;
+`
+
+const BlacklistEmptyContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+
+    > *:first-child {
+        margin-bottom: .5rem;
+    }
+`
+
+const BlacklistEmptyText = styled.span`
+    font-size: 14px;
+    color: rgba(0,0,0,.34);
 `

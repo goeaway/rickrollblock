@@ -1,5 +1,5 @@
 import React from "react";
-import styled, { css } from "styled-components";
+import styled from "styled-components";
 
 export interface OptionsItemProps {
     name: string;
@@ -10,7 +10,10 @@ export interface OptionsItemProps {
 const OptionsItem: React.FC<OptionsItemProps> = ({name, desc, reverse, children}) => {
     return (
         <Container reverse={reverse}>
-            <Name>{name}</Name>
+            <Name>
+                {name}
+                <Desc>{desc}</Desc>
+            </Name>
             <Action>
                 {children}
             </Action>
@@ -25,7 +28,6 @@ interface ContainerProps {
 }
 
 const Container = styled.div`
-    padding: .5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -33,8 +35,14 @@ const Container = styled.div`
     flex-direction: ${(p: ContainerProps) => p.reverse ? "row-reverse": "row"};
 `
 
-const Name = styled.span`
+const Name = styled.div`
+    display: flex;
+    flex-direction: column;
+`
 
+const Desc = styled.span`
+    font-size: 11px;
+    color: rgba(0,0,0,.54);
 `
 
 const Action = styled.span`
