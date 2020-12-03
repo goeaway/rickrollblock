@@ -4,7 +4,7 @@ import { browser, Storage } from "webextension-polyfill-ts";
 import OptionsItem from "./options-item";
 import UrlInput from "./url-input";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExclamationTriangle, faSkullCrossbones } from "@fortawesome/free-solid-svg-icons";
+import { faExclamationTriangle } from "@fortawesome/free-solid-svg-icons";
 import Checkbox from "./checkbox";
 
 const defaultBlacklist = [

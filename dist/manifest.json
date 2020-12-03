@@ -11,7 +11,7 @@
     },
   
     "background": {
-      "scripts": ["background-bundle.js"]
+      "scripts": ["background-bundle.js", "shared-bundle.js"]
     },
 
     "browser_action": {

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "watch": {
-    "local": {
+    "dist": {
       "patterns": [
         "src"
       ],
@@ -12,9 +12,8 @@
     }
   },
   "scripts": {
-    "dist": "webpack --env.mode=production",
-    "local": "webpack --env.mode=development",
-    "test": "jest",
+    "dist": "webpack --env production",
+    "analyse": "webpack --env production --env analyse",
     "watch": "npm-watch"
   },
   "author": "",
@@ -22,22 +21,17 @@
   "devDependencies": {
     "@testing-library/react": "^10.4.9",
     "@types/chrome": "0.0.120",
-    "@types/jest": "^26.0.15",
     "@types/react": "^16.9.43",
     "@types/react-dom": "^16.9.8",
-    "@types/sinon": "^9.0.4",
-    "jest": "^26.6.3",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "sinon": "^9.0.2",
-    "ts-jest": "^26.4.4",
     "ts-loader": "^8.0.1",
     "typescript": "^3.9.6",
+    "uglifyjs-webpack-plugin": "^2.2.0",
     "webextension-polyfill-ts": "^0.19.0",
-    "webpack": "^4.43.0",
-    "webpack-bundle-analyzer": "^3.8.0",
-    "webpack-cli": "^3.3.12",
-    "webpack-dev-server": "^3.11.0"
+    "webpack": "^5.9.0",
+    "webpack-bundle-analyzer": "^4.1.0",
+    "webpack-cli": "^4.2.0"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.32",

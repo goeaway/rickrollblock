@@ -4,14 +4,24 @@ const analyser = require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
 module.exports = env => {
     return {
         entry: {
-            content: "./src/content/index.tsx",
-            background: "./src/background/index.ts",
-            popup: "./src/popup/index.tsx"
+            content: {
+                import: "./src/content/index.tsx",
+                dependOn: "shared"
+            },
+            background: {
+                import: "./src/background/index.ts",
+                dependOn: "shared"
+            },
+            popup: {
+                import: "./src/popup/index.tsx",
+                dependOn: "shared"
+            },
+            shared: ["styled-components", "webextension-polyfill", "preact"]
         },
-        mode: env.production === "production" ? "production" : "development",
-        devtool: env.production === "production" ? undefined : "inline-source-map",
+        mode: env.production ? "production" : "development",
+        devtool: env.production ? undefined : "inline-source-map",
         plugins: [
-            new analyser({analyzerMode: env.analyse ? "server" : "disabled"})
+            new analyser({analyzerMode: env.analyse ? "server" : "disabled"}),
         ],
         output: {
             path: path.resolve(__dirname, "dist"),
@@ -33,16 +43,6 @@ module.exports = env => {
                     exclude: /node_modules/ 
                 }
             ]
-        },
-        devServer: {
-            contentBase: "./wwwroot",
-            publicPath: "/output",
-            hot: true,
-            headers: {
-                "Access-Control-Allow-Origin": "*"
-            },
-            historyApiFallback: true,
-            index: "index.html"
         }
     }
 }

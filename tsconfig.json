@@ -2,7 +2,7 @@
     "compilerOptions": {
       "target": "es5",
       "jsx": "react",
-      "module": "commonjs",
+      "module": "es2015", // <-- setting this to commonjs causes large bundle size with font awesome icons
       "lib": ["es6", "dom"],
       "moduleResolution": "node",
       "esModuleInterop": true,
